@@ -4,13 +4,14 @@
 
 (hmmm....thats not the type of lakehouse were gonna talk about here, but that does look pretty cool)
 
-## Lets talk about Data Lakes first!
-A Data Lake is a large, centralized repository that stores vast amounts of raw, unstructured, and structured data in its original format. Its designed to handle diverse data types, from text and images to log files and sensor data, making it suitable for big data and machine learning
-An example of this would be: A retail company stores raw sales data in JSON, CSV files, and images,into a data lake, allowing users to process and analyze this data without needing predefined schemas
-
-## Now, we can talk about Data Warehouses:
+## Lets talk about Data Warehouses first!:
  Imagine you have a huge, organized filing cabinet in your office. Each folder contains neatly categorized, structured information—like customer orders, product inventory, or sales data. You can quickly pull out specific folders, perform complex queries, and generate detailed reports to gain insights into your business operations. That’s essentially what a Data Warehouse does—it stores structured data in a way that’s optimized for analytical queries, providing fast, organized access to important business insights
 Just about every company has a data warehouse! An example of this would be, a financial services firm might use a data warehouse to store customer transaction data, monthly sales summaries, and quarterly financial reports, enabling fast analytics and reporting for business insights
+
+## Now, we can talk about data lakes!
+A Data Lake is a large, centralized repository that stores vast amounts of raw, unstructured, and structured data in its original format. Its designed to handle diverse data types, from text and images to log files and sensor data, making it suitable for big data and machine learning
+An example of this would be a retail company like Target can store raw sales data in JSON, CSV files,  images of reciepts, and more,into a data lake, allowing users to process and analyze this data without needing change the data 
+
 
 ## Now the star of the show, Lakehouses!
 Remember that filing cabinet from Data Warehousing? Now, imagine you want to combine insights from different folders—like understanding how sales data correlates with specific customer orders or tracking inventory trends over time. A Lakehouse works like this, seamlessly blending both structured data (from those organized folders) and unstructured data (like additional notes or customer feedback), allowing you to perform advanced analytics and machine learning, all while maintaining a unified and flexible data management system.
