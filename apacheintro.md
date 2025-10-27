@@ -60,11 +60,16 @@ Imagine you run a library and need to categorize 1 million books by genre:
 - Executors → Librarians who are actually moving books and la
 
 so when you start a spark session, SparkSession automatically creates a driver for your application. Cluster manager is already setup, and executors are automatically started by the cluster manager, and tasks are created when you perform operations like df.show(), df.filter(), df.groupby()
+
 So you dont have to set these things up when creating a spark application. you only need to change things if you want more control or are running large workloads so youd change the number of executors, memory per executor, number of cores per executors
 
+### Clusters summary
 
 Now for clusters: Imagine you have 1 million patient records and want to capitalize first names:
 Without a cluster: One computer processes 1 million records one by one → slow.
 With a cluster of 5 worker nodes:
 Each node processes ~200,000 records in parallel → much faster.
 Driver coordinates the work and merges results.
+
+The type of cluster you use depends on how you want to run your spark job
+All purpose cluster is used when youre developing your notebook, want to run transformations interactively, test logic, preview data, debug, etc.  a job cluster is used to run scheduled jobs and terminates when done. so you would use it on ETL transformations lets say that run daily, weekly, etc and you dont need to interact with the data while running it 
