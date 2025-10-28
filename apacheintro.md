@@ -73,3 +73,208 @@ Driver coordinates the work and merges results.
 
 The type of cluster you use depends on how you want to run your spark job
 All purpose cluster is used when youre developing your notebook, want to run transformations interactively, test logic, preview data, debug, etc.  a job cluster is used to run scheduled jobs and terminates when done. so you would use it on ETL transformations lets say that run daily, weekly, etc and you dont need to interact with the data while running it 
+
+# Apache Spark Dataframes
+Dataframes can be created from various multiple sources, like JSON, CSV, Parquet, text, more. They also support delta lake or other table storage format directories and can be created from tables or views in Unity Catalog, external databases, etc. Ex. a csv file can be read using spark.read.csv()
+Behind the scenes: when a dataframe is evaluated, the driver creates an optimized execution plan through  a series of transformations, converting hte logical plan into a physical execution plan that minimizes resoruce usage and execution time
+
+Catalyst optimizer and photon:
+Catalyst Optimizer: this is a query optimization engine that converts dataframe operations into an optimized execution plan. it applies rule based and cost based optimizations to improve query performance
+Photon engine: a vectgorized query engine that accelerates query execution by processing data in batches rather than row by row. its enabled by defauly in sql warehouses and serverless compute
+
+Columnar Storage
+<img width="223" height="246" alt="image" src="https://github.com/user-attachments/assets/50f8aeb3-67cf-43ff-b228-959a306ee3d5" />
+
+- data is organized by columns rather than rows, being efficient for analytical workloads. it is implemnted in dataframe internal storage and in file formats like parquet 
+
+## Dataframes
+The DataFrameReader (spark.read) supports multiple file formats and schema, and DataFrameWriter(dataframe.write) allows flexible output formats and paritoning
+
+df = spark.read.format("format").opton(..).load()
+df = spark.read.csv("c:/...")
+df = spark.read.parquet("s3://....")
+
+df.write.csv("c/...")
+df.write.parquet("s3/...")
+
+Every dataframe has a defined schema which is the structure and data types of all columns
+It can be inferred from data or explicitly specififed:
+from pyspark.sql.types import *
+schema = StructType([
+  structField("name", stringtype()),
+  structfield("Age",intergertype()) ])
+  use printschema() to print out the dataframe schema
+
+  instead of using StructType for defining the datagrame schemas you can use DDL strings which provide a more readable format
+
+  ddl_schema - "name STRING NOT NULL, age INT, city STRING"
+  df = spark.read.csv("c:/.."schema=ddl_schema)
+  df.printschema()
+<img width="1168" height="635" alt="image" src="https://github.com/user-attachments/assets/3fe8ab5b-45cd-4307-97b2-5dd30c3d1938" />
+<img width="493" height="126" alt="image" src="https://github.com/user-attachments/assets/3c2c47a8-72be-46c1-be0a-b33aa9c864a8" />
+
+  Once dataframes are created, their data cant be mofidied. Instead, you create new dataframes from existing ones for transofrmations. Then actions like showing or saving the output triger actual comutation and produce final results. Multiple transofrmations can be called, and the job is only created when an action is requested, called lazy evaluation
+
+  <img width="495" height="274" alt="image" src="https://github.com/user-attachments/assets/d80e1e47-8583-4f16-aa5a-3b4b278c28d4" />
+
+  <img width="508" height="276" alt="image" src="https://github.com/user-attachments/assets/4432ed85-75d6-4e15-a370-787ec0fb8617" />
+
+customers_df = spark.read.format("csv")\
+.opton("header","true")\
+.option("inferschema","true")\
+.load("/volumes/v01/sourcefiles)
+
+customers_df.printschema() --shows you the columns of the headers and the type
+display(customers_df) --to see your data, results are limited to 10k rows or 2mb
+when you display the results, you can click on the plus sign > data profiling to see more info on your data in the dataframe 
+<img width="836" height="454" alt="image" src="https://github.com/user-attachments/assets/e64c970d-aa27-4454-8042-c6847c608ec2" />
+
+you use infer schema often when you load from csv and text files not so much parquet
+so if youre reading from csv you can define hhe schema and define the structtype and data fields 
+
+after you diaplsyed the data in a dataframe for a csv file you can write it out to a parquet file
+first define a file path:
+parquet_output_volume_path = f"volumes/{da.catalog_name}/default/vo1/customers_parquet"
+
+then write the dataframe out as parquet files into a directoey
+customers_ddl_df.write.format("parquet"\
+.mode("overwrite")\
+.save(parquet_output_volume_path)
+
+then to see the files in your directory:
+display(dbutils.fs.ls(parquet_output_volume_path) --dbutils is a built in package in databricks
+
+we can also save our dataframe to a new table:
+customers_ddl_df.write.saveAsTable("customers_ddl_df_table")
+
+or you can use the writeTo method 
+customers_ddl.df.writeTo(
+f"{da.catalog_name}.defualt.customers_ddl_df_table"
+).createOrReplace()
+
+select * from customers_ddl_df_table (or use display)
+
+# Shared Nothing Architecture
+- In this architecture, each node has its onw memory, disk, and cpu, reducing contention and improving scalability
+- independende:  nodes communicate when neccessary only, usually when shuffling or writing results
+- scalability: scalability is achieved by adding more nodes with performance scaling linerarly if partioning is done correctly
+- fault tolerance is ensured as failures are isolated to specific nodes, allowing others to continue processing, minimizing system wide impacts
+- resource partiioning: divides and distributes data across nodes enabling parallel processing so it can eliminate contention
+
+## Partioning
+In Spark, data is broken into chunks called paritions, which are processed independently, not to be confused with table, disk paritoning. 
+How spark distributes data across the cluster:
+- Data Distribution - data is divided into mutually exclusive in memory paritions, based upon input and can be maipulated, and size and number of paritions affect parallelism. Each partition is processed by a single task within a spark job
+- Processing model
+- - each parition processed independently
+  - multiple paritions can run in parallel
+  - one partition = one task in spark
+  - impacts performance
+ 
+## The Shuffle Operation
+    <img width="520" height="270" alt="image" src="https://github.com/user-attachments/assets/c0f58b01-c8d2-4cf8-846a-afc384d76ff0" />
+
+  - Shuffling is the redistribution of data across teh cluster to complete operations such as groupBy, join and sorting
+  - its necessary when data needs to be aggregated or combined across paritions
+  - it happens when operations that requre data organization like group by or join and hte overhead increased with hte number of paritions involved
+  - minimzing suffling is critical for performance, and optimziation techniques include co-located data
+
+## Map Reduce in Action
+Understanding how spark executes Map, Shuffle and Reduce is key to optimization, properly tuning each stage can improve performance
+<img width="521" height="292" alt="image" src="https://github.com/user-attachments/assets/5d3a8528-da3f-49e5-9eb5-a4513f1966ac" />
+-The Map Stage is the inital transformation where data is filtered, mapped or preprated. operations like select and filter are narrow transformations, meaning data remains in teh same node
+- The shuffle stage resturctures data acorss partitions to meet aggregation or join requirements and is the most resource intensive stae of the map reduce pattern
+- the reduce stage involves aggregation or final transformation of the shuffled data with results often written to storage or returned to the driver
+
+Spark follows a map/shuffle/reduce model for most operations. even simple transofrmations like filter() can involce these stages if repartitioning occurs. common excmles inclde groupBy, which extract keys, shuffles, adn then aggregates:join, which prepares the keys, shuffles and then combines; then filter, which evaluates a condition and requires no shuffle or reduce
+
+# Basic ETL Operations with DataFrame API
+<img width="507" height="228" alt="image" src="https://github.com/user-attachments/assets/89add9d8-0afd-42b5-9f4d-57d9943c0ed8" />
+
+- DataFrame.join with a second ataframe as the other argument and you join two dataframes by a key
+
+<img width="506" height="257" alt="image" src="https://github.com/user-attachments/assets/9224ec85-fe6f-4348-a5b5-b1099e8aeb6e" />
+
+<img width="495" height="264" alt="image" src="https://github.com/user-attachments/assets/e9bbc842-8a58-4cbe-b464-55aa42356f91" />
+
+<img width="478" height="277" alt="image" src="https://github.com/user-attachments/assets/3eb5cf7e-7ee2-4a50-8916-c40a34ca0b1a" />
+
+<img width="520" height="281" alt="image" src="https://github.com/user-attachments/assets/71aca975-29b3-447f-a781-9b0719978a93" />
+
+
+# Example walkthrough:
+first, read the data into a dataframe:
+
+flights_df = spark.read.table("dbacademy_airline.vo1_flights_small")
+flights_df.printschema() --inspect the schema
+display(flights_df.limit(10)) -- view your data
+
+Now we can do transformations. if there are columns you dont need, you should do it first
+
+flights_required_col_df = flights_df.select( --this is you creating a new data frame. since this is a transofrmation it wont kick off a job
+"year"
+"month"
+...
+)
+
+now lets get a count of records
+inital_count = flights_required_cols_def.count()
+print(f"soruce data has {inital_count} records")
+
+now lets create a view:
+
+flights_required_col_df\
+.selectExpr(
+"year",
+"month",
+"CAST(DepTime AS INT) as DepTime",
+...
+)\
+.createOrReplaceTempView("flights_temp")
+
+now you can use spark sql to count null values
+
+invalid_counts_sql = spark.sql("""
+SELECT
+COUNT_IF(YEAR IS NULL) AS NULL_YEAR_COUNT)
+...
+FROM FLIGHTS_TEMP
+""")
+
+<img width="886" height="383" alt="image" src="https://github.com/user-attachments/assets/87ccc853-35c3-48f4-ab4d-ffec29b337f5" />
+
+you can perform these same things with spark api in python:
+
+<img width="907" height="482" alt="image" src="https://github.com/user-attachments/assets/be89cc6e-549d-4a73-9a7a-0e9e7d7feffc" />
+
+with every dataframe you can run a explain plan, to see how does it compile to execute:
+
+sql_plan = invalid_Counts.sql.explain()
+
+df_plan = invalid_counts_df.explain()
+
+now you can say is the sql plan equal to the dataframe plan?
+sql_plan == df_plan
+
+now we can clean the data
+lets drop rows where columns are null, so e can use na.drop
+
+non_null_flights_df = flights_required_cols_df.na.drop(
+how = 'any',
+subset=[CRSElapsedTime']) --dropping nulls for this column
+
+now we can remove rows with invalid values for certain columns 
+
+flights_with_valid_data_Df = non_null_flights_df.filter)
+
+col)"ArrDelay").cast("integer").isNotNull() )
+
+now that our column contains integer values only, we can cast them from strings to integer, replacing the existing columns:
+
+clean_flights_df = flights_with_valid_data_fd\
+.withColumn("ArrDelay",col("arrdelay").cast("integer"))
+
+
+<img width="877" height="288" alt="image" src="https://github.com/user-attachments/assets/b0196f43-cce4-499e-a3c4-c76c4293f7d2" />
+
+so every transformation being created is being saved to new dataframes 
